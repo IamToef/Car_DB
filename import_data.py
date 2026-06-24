@@ -135,20 +135,27 @@ def normalize_and_import():
         if "dac_tinh_xe_tai" in item:
             thong_so_chi_tiet["dac_tinh_xe_tai"] = item["dac_tinh_xe_tai"]
             
+        # Thêm các phiên bản chi tiết từ API nếu có
+        if "cac_phien_ban" in item:
+            thong_so_chi_tiet["cac_phien_ban"] = item["cac_phien_ban"]
+
         # Chuyển đổi thong_so_chi_tiet sang chuỗi JSON
         thong_so_json = json.dumps(thong_so_chi_tiet, ensure_ascii=False)
+        
+        # Lấy lịch sử dòng xe
+        lich_su = item.get("lich_su")
         
         # Chèn bản ghi vào bảng phuong_tien
         cursor.execute("""
             INSERT INTO phuong_tien (
                 hang_id, dong_xe, nam_san_xuat, loai_xe, loai_nhien_lieu, 
                 dong_co, tinh_trang_san_xuat, gia_niem_yet, xuat_xu, 
-                hinh_anh_url, url_chi_tiet, thong_so_chi_tiet
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                hinh_anh_url, url_chi_tiet, thong_so_chi_tiet, lich_su
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             hang_id, dong_xe, nam_san_xuat, loai_xe, loai_nhien_lieu,
             dong_co, tinh_trang_san_xuat, gia_niem_yet, xuat_xu,
-            hinh_anh_url, url_chi_tiet, thong_so_json
+            hinh_anh_url, url_chi_tiet, thong_so_json, lich_su
         ))
         imported_count += 1
 
@@ -191,6 +198,22 @@ def run_test_queries():
     """)
     for row in cursor.fetchall():
         print(f"Hãng: {row[0]} | Dòng xe: {row[1]} | Loại: {row[2]} | Tải trọng: {row[3]} kg")
+
+    # 4. Truy vấn lịch sử dòng xe và phiên bản (Trims) mẫu từ Wikipedia/CarQuery
+    print("\n--- Truy vấn lịch sử dòng xe và phiên bản mẫu ---")
+    cursor.execute("""
+        SELECT h.ten_hang, p.dong_xe, p.lich_su, json_extract(p.thong_so_chi_tiet, '$.cac_phien_ban') as phien_ban
+        FROM phuong_tien p
+        JOIN hang_xe h ON p.hang_id = h.id
+        WHERE p.lich_su IS NOT NULL AND p.lich_su NOT LIKE '%chưa được cập nhật%'
+        LIMIT 2
+    """)
+    for row in cursor.fetchall():
+        pb_list = json.loads(row[3]) if row[3] else []
+        pb_names = [f"{pb.get('phien_ban')} ({pb.get('nam')})" for pb in pb_list[:2]]
+        print(f"Hãng: {row[0]} | Dòng xe: {row[1]}")
+        print(f"  Lịch sử: {row[2][:200]}...")
+        print(f"  Phiên bản mẫu: {', '.join(pb_names)}")
 
     conn.close()
 

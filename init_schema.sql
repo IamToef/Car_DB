@@ -27,6 +27,9 @@ CREATE TABLE IF NOT EXISTS phuong_tien (
     -- Trong SQLite, cột này sẽ có kiểu TEXT chứa chuỗi JSON.
     thong_so_chi_tiet TEXT, 
     
+    -- Cột lưu trữ tóm tắt lịch sử phát triển của dòng xe cào từ Wikipedia
+    lich_su TEXT,
+    
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
